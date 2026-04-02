@@ -336,6 +336,17 @@ body {
   75% { transform: translateX(0.3rem); }
 }
 
+@keyframes card-flip {
+  from { transform: rotateY(180deg); }
+  to { transform: rotateY(0deg); }
+}
+
+.card.card-flip {
+  animation: card-flip 0.4s ease;
+  perspective: 50rem;
+  transform-style: preserve-3d;
+}
+
 /* Touch targets for interactive elements */
 button[data-action],
 [data-action] {
@@ -552,6 +563,9 @@ const confettiContainer = document.querySelector('.confetti-container');
 const gameArea = document.querySelector('.game-area');
 
 const cardMap = new WeakMap();
+
+/** @type {Card|null} Card that was just auto-flipped and needs flip animation */
+let lastFlippedCard = null;
 
 /* ===== KEYBOARD NAVIGATION STATE ===== */
 /** @type {{ cards: Card[], fromPileId: string } | null} */
@@ -771,11 +785,13 @@ function executeMove(cards, fromPileId, toPileId) {
 
   /* Auto-flip revealed card */
   let flippedCard = null;
+  lastFlippedCard = null;
   if (fromPileId.startsWith('tableau-') && fromPile.length > 0) {
     const topCard = fromPile[fromPile.length - 1];
     if (!topCard.faceUp) {
       topCard.faceUp = true;
       flippedCard = topCard;
+      lastFlippedCard = topCard;
     }
   }
 
@@ -789,11 +805,13 @@ function executeMove(cards, fromPileId, toPileId) {
   if (state.foundations.every(f => f.length === 13)) {
     state.gameWon = true;
     renderAll();
+    animateFlippedCard();
     showWinOverlay();
     return true;
   }
 
   renderAll();
+  animateFlippedCard();
   return true;
 }
 
@@ -954,6 +972,22 @@ function renderStock() {
     recycleEl.textContent = '\u21BB';
     stockEl.appendChild(recycleEl);
   }
+}
+
+function animateFlippedCard() {
+  if (!lastFlippedCard) return;
+  const card = lastFlippedCard;
+  lastFlippedCard = null;
+  const cardTestId = 'solitaire-card-' + card.suit + '-' + card.value;
+  const el = document.querySelector('[data-testid="' + cardTestId + '"]');
+  if (!el) return;
+  el.classList.add('card-flip');
+  el.setAttribute('data-testid', 'card-flip-animation');
+  el.addEventListener('animationend', function onEnd() {
+    el.removeEventListener('animationend', onEnd);
+    el.classList.remove('card-flip');
+    el.setAttribute('data-testid', cardTestId);
+  });
 }
 
 function renderAll() {
