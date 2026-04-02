@@ -22,7 +22,9 @@
   --button-bg: #4caf50;
   --button-text: #ffffff;
   --pile-border: rgba(255, 255, 255, 0.25);
-  --card-back-pattern: #0d47a1;
+  --card-border: #ddd;
+  --confetti-orange: #ff9800;
+  --confetti-purple: #9c27b0;
   --tablet-card-width: 3.5rem;
   --tablet-card-height: 5rem;
 }
@@ -166,7 +168,7 @@ body {
 .card {
   width: var(--card-width);
   height: var(--card-height);
-  border-radius: 0.5rem;
+  border-radius: 0.25rem;
   position: absolute;
   left: 0;
   cursor: default;
@@ -177,10 +179,11 @@ body {
 .card-face {
   background: var(--card-bg);
   box-shadow: var(--card-shadow);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.25rem;
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -193,44 +196,54 @@ body {
 }
 
 .card-face .card-corner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 0.7rem;
+  position: absolute;
+  font-size: 0.65rem;
   line-height: 1.1;
+  text-align: center;
   font-weight: 700;
 }
 
-.card-face .card-corner .card-value {
-  font-size: 0.85rem;
+.card-face .card-corner-top {
+  top: 0.2rem;
+  left: 0.25rem;
 }
 
 .card-face .card-corner-bottom {
-  align-self: flex-end;
+  bottom: 0.2rem;
+  right: 0.25rem;
   transform: rotate(180deg);
 }
 
 .card-face .card-center {
-  font-size: 1.75rem;
-  text-align: center;
-  flex-grow: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 1.8rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .card-back {
   background: var(--card-back);
   box-shadow: var(--card-shadow);
+  width: 100%;
+  height: 100%;
+  border-radius: 0.25rem;
   background-image:
     repeating-linear-gradient(
       45deg,
       transparent,
-      transparent 0.35rem,
-      var(--card-back-pattern) 0.35rem,
-      var(--card-back-pattern) 0.7rem
+      transparent 0.25rem,
+      rgba(255, 255, 255, 0.1) 0.25rem,
+      rgba(255, 255, 255, 0.1) 0.5rem
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 0.25rem,
+      rgba(255, 255, 255, 0.1) 0.25rem,
+      rgba(255, 255, 255, 0.1) 0.5rem
     );
-  border: 0.125rem solid var(--card-bg);
+  border: 1px solid rgba(0, 0, 0, 0.3);
 }
 
 .card.dragging {
@@ -293,6 +306,7 @@ body {
 }
 
 .win-card .new-best {
+  display: none;
   color: var(--card-red);
   font-weight: 700;
   font-size: 1.2rem;
@@ -341,7 +355,7 @@ body {
 }
 
 /* Responsive: Tablet */
-@media (max-width: 1023px) and (min-width: 768px) {
+@media (max-width: 1023px) {
   :root {
     --card-width: var(--tablet-card-width);
     --card-height: var(--tablet-card-height);
@@ -356,15 +370,11 @@ body {
   }
 
   .card-face .card-center {
-    font-size: 1.25rem;
-  }
-
-  .card-face .card-corner .card-value {
-    font-size: 0.7rem;
+    font-size: 1.3rem;
   }
 
   .card-face .card-corner {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
   }
 }
 </style>
@@ -420,7 +430,7 @@ body {
   <div class="win-card">
     <h2>You Win!</h2>
     <p class="win-moves"></p>
-    <p class="new-best" style="display:none">New Best!</p>
+    <p class="new-best">New Best!</p>
     <button data-testid="solitaire-playagain" data-action="playagain">Play Again</button>
   </div>
 </div>
@@ -465,6 +475,8 @@ const winNewBestEl = winOverlay.querySelector('.new-best');
 const playAgainBtn = document.querySelector('[data-testid="solitaire-playagain"]');
 const confettiContainer = document.querySelector('.confetti-container');
 const gameArea = document.querySelector('.game-area');
+
+const cardMap = new WeakMap();
 
 /* ===== GAME STATE ===== */
 
@@ -772,7 +784,7 @@ function createCardEl(card, zIndex) {
   /* data-testid for every card: solitaire-card-{suit}-{rank} */
   el.setAttribute('data-testid', `solitaire-card-${card.suit}-${card.value}`);
   el.style.zIndex = String(zIndex);
-  el._card = card;
+  cardMap.set(el, card);
 
   if (card.faceUp) {
     el.classList.add('face-up');
@@ -781,9 +793,9 @@ function createCardEl(card, zIndex) {
     const val = displayValue(card.value);
     el.innerHTML =
       `<div class="card-face ${color}">` +
-        `<div class="card-corner"><span class="card-value">${val}</span><span>${symbol}</span></div>` +
-        `<div class="card-center">${symbol}</div>` +
-        `<div class="card-corner card-corner-bottom"><span class="card-value">${val}</span><span>${symbol}</span></div>` +
+        `<span class="card-corner card-corner-top">${val}<br>${symbol}</span>` +
+        `<span class="card-center">${symbol}</span>` +
+        `<span class="card-corner card-corner-bottom">${val}<br>${symbol}</span>` +
       `</div>`;
   } else {
     el.innerHTML = '<div class="card-back"></div>';
@@ -884,7 +896,7 @@ function hideWinOverlay() {
 
 function spawnConfetti() {
   confettiContainer.innerHTML = '';
-  const colors = ['var(--card-red)', 'var(--button-bg)', 'var(--card-back)', '#ff9800', '#9c27b0'];
+  const colors = ['var(--card-red)', 'var(--button-bg)', 'var(--card-back)', 'var(--confetti-orange)', 'var(--confetti-purple)'];
   for (let i = 0; i < 60; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
@@ -898,6 +910,7 @@ function spawnConfetti() {
 
 /* ===== DRAG AND DROP ===== */
 
+const DROP_EXTEND_PX = 100;
 let dragState = null;
 
 function startDrag(card, cardEl, clientX, clientY) {
@@ -988,7 +1001,7 @@ function getDropTarget(clientX, clientY) {
   for (const tEl of tableauEls) {
     const rect = tEl.getBoundingClientRect();
     /* Extend hit area downward for cascading columns */
-    if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom + 100) {
+    if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom + DROP_EXTEND_PX) {
       return tEl;
     }
   }
@@ -1020,8 +1033,8 @@ let clickStartY = 0;
 
 gameArea.addEventListener('mousedown', (e) => {
   const cardEl = e.target.closest('.card');
-  if (!cardEl || !cardEl._card) return;
-  const card = cardEl._card;
+  if (!cardEl || !cardMap.has(cardEl)) return;
+  const card = cardMap.get(cardEl);
 
   if (!card.faceUp) {
     /* Clicking face-down stock card */
@@ -1075,7 +1088,7 @@ gameArea.addEventListener('mousedown', (e) => {
 stockEl.addEventListener('click', (e) => {
   /* Ignore if clicking a face-up card (shouldn't happen on stock) */
   const cardEl = e.target.closest('.card');
-  if (cardEl && cardEl._card && cardEl._card.faceUp) return;
+  if (cardEl && cardMap.has(cardEl) && cardMap.get(cardEl).faceUp) return;
   drawFromStock();
 });
 
