@@ -766,13 +766,26 @@ function autoMove(card) {
     }
   }
 
-  /* Try tableau columns left to right */
+  /* Try tableau columns — prefer non-empty, then most face-down cards */
+  const candidates = [];
   for (let i = 0; i < 7; i++) {
     const tPileId = `tableau-${i}`;
     if (tPileId === loc.pileId) continue;
     if (canMoveToTableau(cards, i)) {
-      return executeMove(cards, loc.pileId, tPileId);
+      candidates.push({
+        colIndex: i,
+        pileId: tPileId,
+        isEmpty: state.tableau[i].length === 0,
+        faceDownCount: state.tableau[i].filter(c => !c.faceUp).length
+      });
     }
+  }
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => {
+      if (a.isEmpty !== b.isEmpty) return a.isEmpty ? 1 : -1;
+      return b.faceDownCount - a.faceDownCount;
+    });
+    return executeMove(cards, loc.pileId, candidates[0].pileId);
   }
 
   return false;
