@@ -531,7 +531,7 @@ function getHighScore() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const data = JSON.parse(raw);
-      if (typeof data.bestScore === 'number') return data.bestScore;
+      if (typeof data.bestScore === 'number' && Number.isFinite(data.bestScore) && data.bestScore > 0) return data.bestScore;
     }
   } catch (_e) { /* ignore parse errors */ }
   return null;
@@ -880,7 +880,7 @@ function showWinOverlay() {
   const isNewBest = hs === null || state.moveCount < hs;
   if (isNewBest) {
     saveHighScore(state.moveCount);
-    winNewBestEl.style.display = '';
+    winNewBestEl.style.display = 'block';
   } else {
     winNewBestEl.style.display = 'none';
   }
