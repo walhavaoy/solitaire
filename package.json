@@ -5,6 +5,7 @@
   "description": "Klondike Solitaire — single-file browser card game",
   "scripts": {
     "start": "node server.js",
+    "build": "echo 'No build step — index.html is the artifact'",
     "docker:build": "docker build -t klondike-solitaire .",
     "docker:run": "docker run -p 8080:80 klondike-solitaire"
   }

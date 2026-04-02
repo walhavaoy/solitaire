@@ -19,7 +19,7 @@
   --card-black: #1a1a1a;
   --card-back: #1565c0;
   --card-back-pattern: #1976d2;
-  --card-shadow: 0 0.125rem 0.375rem rgba(0, 0, 0, 0.4);
+  --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
   --card-border: #e0d9c8;
   --card-radius: 0.5rem;
   --card-width: 4.5rem;
@@ -61,9 +61,12 @@
   --drag-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
   --pile-border: var(--drop-zone-border);
 
-  /* Responsive */
-  --tablet-card-width: 3.5rem;
-  --tablet-card-height: 5rem;
+  /* Responsive layout */
+  --pile-gap: 1rem;
+  --game-padding: 1.5rem;
+  --game-max-width: 60rem;
+  --touch-min: 2.75rem;
+  --border-subtle: rgba(255, 255, 255, 0.2);
 }
 
 *, *::before, *::after {
@@ -76,7 +79,7 @@ body {
   font-family: var(--font-ui);
   background: var(--page-bg);
   min-height: 100vh;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .header {
@@ -85,9 +88,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem var(--game-padding);
   flex-wrap: wrap;
   gap: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .header h1 {
@@ -122,6 +126,8 @@ body {
   font-family: var(--font-ui);
   font-size: 0.875rem;
   font-weight: 500;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
   transition: background 0.15s;
 }
 
@@ -135,34 +141,41 @@ body {
 }
 
 .game-area {
-  max-width: 60rem;
+  max-width: var(--game-max-width);
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--game-padding);
   background: radial-gradient(ellipse at center, var(--felt-light) 0%, var(--felt-color) 60%, var(--felt-dark) 100%);
   min-height: calc(100vh - 3.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pile-gap);
   border-radius: 0.75rem;
 }
 
 .top-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  align-items: flex-start;
+  gap: var(--pile-gap);
+  flex-wrap: wrap;
 }
 
 .stock-waste {
   display: flex;
-  gap: 1rem;
+  gap: var(--pile-gap);
 }
 
 .foundations {
   display: flex;
-  gap: 1rem;
+  gap: var(--pile-gap);
 }
 
 .tableau {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--pile-gap);
+  align-items: start;
+  flex: 1;
 }
 
 .pile {
@@ -214,6 +227,9 @@ body {
   left: 0;
   cursor: default;
   user-select: none;
+  touch-action: none;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
   transition: transform 0.12s ease;
 }
 
@@ -299,6 +315,13 @@ body {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-0.3rem); }
   75% { transform: translateX(0.3rem); }
+}
+
+/* Touch targets for interactive elements */
+button[data-action],
+[data-action] {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
 }
 
 /* Win overlay */
@@ -392,16 +415,14 @@ body {
 /* Responsive: Tablet */
 @media (max-width: 1023px) {
   :root {
-    --card-width: var(--tablet-card-width);
-    --card-height: var(--tablet-card-height);
+    --card-width: 3.5rem;
+    --card-height: 5rem;
+    --pile-gap: 0.5rem;
+    --game-padding: 0.75rem;
   }
 
   .game-area {
-    padding: 1rem;
-  }
-
-  .top-row {
-    margin-bottom: 1rem;
+    padding: var(--game-padding);
   }
 
   .card-face .card-center {
@@ -1131,6 +1152,75 @@ gameArea.addEventListener('mousedown', (e) => {
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
 });
+
+/* Touch event support for tablet */
+gameArea.addEventListener('touchstart', (e) => {
+  const touch = e.touches[0];
+  const cardEl = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.card');
+  if (!cardEl || !cardMap.has(cardEl)) return;
+  const card = cardMap.get(cardEl);
+
+  if (!card.faceUp) {
+    const loc = findCard(card);
+    if (loc && loc.pileId === 'stock') {
+      /* Stock tap handled by stock click listener */
+    }
+    return;
+  }
+
+  e.preventDefault();
+  clickStartTime = Date.now();
+  clickStartX = touch.clientX;
+  clickStartY = touch.clientY;
+
+  const onTouchMove = (moveE) => {
+    moveE.preventDefault();
+    const t = moveE.touches[0];
+    const dx = t.clientX - clickStartX;
+    const dy = t.clientY - clickStartY;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchEnd);
+      startDrag(card, cardEl, clickStartX, clickStartY);
+
+      const onDragMove = (dragE) => {
+        dragE.preventDefault();
+        moveDrag(dragE.touches[0].clientX, dragE.touches[0].clientY);
+      };
+      const onDragEnd = (endE) => {
+        document.removeEventListener('touchmove', onDragMove);
+        document.removeEventListener('touchend', onDragEnd);
+        document.removeEventListener('touchcancel', onDragEnd);
+        const ct = endE.changedTouches?.[0];
+        if (ct) {
+          endDrag(ct.clientX, ct.clientY);
+        } else {
+          endDrag(clickStartX, clickStartY);
+        }
+      };
+      document.addEventListener('touchmove', onDragMove, { passive: false });
+      document.addEventListener('touchend', onDragEnd);
+      document.addEventListener('touchcancel', onDragEnd);
+    }
+  };
+
+  const onTouchEnd = (_endE) => {
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('touchcancel', onTouchEnd);
+    if (!dragState) {
+      if (!autoMove(card)) {
+        cardEl.classList.add('shake');
+        setTimeout(() => cardEl.classList.remove('shake'), 300);
+      }
+    }
+  };
+
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+  document.addEventListener('touchcancel', onTouchEnd);
+}, { passive: false });
 
 /* Stock pile click */
 stockEl.addEventListener('click', (e) => {

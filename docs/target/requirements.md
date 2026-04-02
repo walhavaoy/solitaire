@@ -36,7 +36,7 @@ Areas: `GL` (game logic), `IN` (interaction), `SC` (scoring), `UI` (user interfa
 ## Infrastructure
 
 - REQ-IF-01: Single index.html file — all HTML, CSS, and JS embedded; no external dependencies, no build step, no CDN links
-- REQ-IF-02: Dockerfile using nginx:alpine, copying index.html to /usr/share/nginx/html/, serving on port 80
+- REQ-IF-02: Dockerfile using nginx:alpine to serve index.html on port 8080
 
 ## Assumptions
 
