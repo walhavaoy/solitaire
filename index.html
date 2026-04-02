@@ -524,7 +524,7 @@ let state = {
   /** @type {Card[][]} */ foundations: [[], [], [], []],
   /** @type {Card[][]} */ tableau: [[], [], [], [], [], [], []],
   /** @type {number} */ moveCount: 0,
-  /** @type {Move[]} */ undoStack: [],
+  /** @type {Move[]} Single-entry: last move only */ undoStack: [],
   /** @type {boolean} */ gameWon: false
 };
 
@@ -618,10 +618,10 @@ function drawFromStock() {
     const card = state.stock.pop();
     card.faceUp = true;
     state.waste.push(card);
-    state.undoStack.push({
+    state.undoStack = [{
       type: 'draw', from: 'stock', to: 'waste',
       cards: [card], flippedCard: null
-    });
+    }];
     state.moveCount++;
   } else if (state.waste.length > 0) {
     /* Recycle waste back to stock */
@@ -629,10 +629,10 @@ function drawFromStock() {
     cards.forEach(c => { c.faceUp = false; });
     state.stock = cards;
     state.waste = [];
-    state.undoStack.push({
+    state.undoStack = [{
       type: 'recycle', from: 'waste', to: 'stock',
       cards: cards, flippedCard: null
-    });
+    }];
     state.moveCount++;
   }
   renderAll();
@@ -731,10 +731,10 @@ function executeMove(cards, fromPileId, toPileId) {
     }
   }
 
-  state.undoStack.push({
+  state.undoStack = [{
     type: 'move', from: fromPileId, to: toPileId,
     cards: [...cards], flippedCard
-  });
+  }];
   state.moveCount++;
 
   /* Check win */

@@ -61,4 +61,4 @@ npm run docker:run
 3. **Fisher-Yates shuffle**: Unbiased card shuffling algorithm
 4. **CSS custom properties for theming**: Green felt background, easy to customize
 5. **Event delegation**: Single event listener on game container, dispatch by `data-action`
-6. **No undo stack limit**: Full undo history kept in memory (acceptable for card game scope)
+6. **Single-level undo**: Only the last move is stored; one undo per move
