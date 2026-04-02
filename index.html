@@ -301,10 +301,16 @@ body {
   box-shadow: var(--drag-shadow);
   pointer-events: none;
   transition: none;
+  opacity: 0.75;
+}
+
+.card.snap-back {
+  transition: left 0.25s ease, top 0.25s ease;
 }
 
 .card.face-up {
   cursor: pointer;
+  touch-action: none;
 }
 
 .card.shake {
@@ -1045,14 +1051,32 @@ function endDrag(clientX, clientY) {
   }
 
   if (!moved) {
-    /* Snap back */
-    dragState.elements.forEach((el, i) => {
+    /* Animated snap-back */
+    const savedState = dragState;
+    savedState.elements.forEach((el, i) => {
       el.classList.remove('dragging');
-      el.style.position = dragState.startPositions[i].position;
-      el.style.top = dragState.startPositions[i].top;
-      el.style.left = dragState.startPositions[i].left;
+      el.classList.add('snap-back');
+      el.style.position = savedState.startPositions[i].position;
+      el.style.top = savedState.startPositions[i].top;
+      el.style.left = savedState.startPositions[i].left;
       el.style.zIndex = '';
     });
+
+    const firstEl = savedState.elements[0];
+    const cleanup = () => {
+      savedState.elements.forEach(el => el.classList.remove('snap-back'));
+    };
+    firstEl.addEventListener('transitionend', cleanup, { once: true });
+    /* Safety fallback if transitionend doesn't fire */
+    setTimeout(cleanup, 300);
+
+    if (savedState.pointerId != null) {
+      try { gameArea.releasePointerCapture(savedState.pointerId); } catch (_e) { /* already released */ }
+    }
+  } else {
+    if (dragState && dragState.pointerId != null) {
+      try { gameArea.releasePointerCapture(dragState.pointerId); } catch (_e) { /* already released */ }
+    }
   }
 
   dragState = null;
@@ -1100,7 +1124,10 @@ let clickStartTime = 0;
 let clickStartX = 0;
 let clickStartY = 0;
 
-gameArea.addEventListener('mousedown', (e) => {
+gameArea.addEventListener('pointerdown', (e) => {
+  /* Guard against multi-touch: ignore if drag already active */
+  if (dragState) return;
+
   const cardEl = e.target.closest('.card');
   if (!cardEl || !cardMap.has(cardEl)) return;
   const card = cardMap.get(cardEl);
@@ -1114,32 +1141,40 @@ gameArea.addEventListener('mousedown', (e) => {
     return;
   }
 
+  e.preventDefault();
+  gameArea.setPointerCapture(e.pointerId);
+
   clickStartTime = Date.now();
   clickStartX = e.clientX;
   clickStartY = e.clientY;
+  const startPointerId = e.pointerId;
 
-  const onMouseMove = (moveE) => {
+  const onPointerMove = (moveE) => {
     const dx = moveE.clientX - clickStartX;
     const dy = moveE.clientY - clickStartY;
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       /* Start drag */
-      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('pointermove', onPointerMove);
       startDrag(card, cardEl, clickStartX, clickStartY);
+      if (dragState) {
+        dragState.pointerId = startPointerId;
+      }
 
       const onDragMove = (dragE) => moveDrag(dragE.clientX, dragE.clientY);
       const onDragEnd = (endE) => {
-        document.removeEventListener('mousemove', onDragMove);
-        document.removeEventListener('mouseup', onDragEnd);
+        document.removeEventListener('pointermove', onDragMove);
+        document.removeEventListener('pointerup', onDragEnd);
         endDrag(endE.clientX, endE.clientY);
       };
-      document.addEventListener('mousemove', onDragMove);
-      document.addEventListener('mouseup', onDragEnd);
+      document.addEventListener('pointermove', onDragMove);
+      document.addEventListener('pointerup', onDragEnd);
     }
   };
 
-  const onMouseUp = (_upE) => {
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
+  const onPointerUp = (_upE) => {
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    try { gameArea.releasePointerCapture(startPointerId); } catch (_e) { /* already released */ }
     /* It's a click — auto-move */
     if (!dragState) {
       if (!autoMove(card)) {
@@ -1149,8 +1184,15 @@ gameArea.addEventListener('mousedown', (e) => {
     }
   };
 
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
+  document.addEventListener('pointermove', onPointerMove);
+  document.addEventListener('pointerup', onPointerUp);
+});
+
+/* Gracefully cancel drag if pointer capture is lost (e.g., system dialog) */
+gameArea.addEventListener('lostpointercapture', () => {
+  if (dragState) {
+    endDrag(-1, -1);
+  }
 });
 
 /* Touch event support for tablet */
