@@ -6,6 +6,6 @@
   "scripts": {
     "start": "node server.js",
     "docker:build": "docker build -t klondike-solitaire .",
-    "docker:run": "docker run -p 8080:8080 klondike-solitaire"
+    "docker:run": "docker run -p 8080:80 klondike-solitaire"
   }
 }

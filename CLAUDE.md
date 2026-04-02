@@ -7,7 +7,7 @@ A single-file browser-based Klondike Solitaire card game. No server-side logic �
 - **Runtime**: Modern browser (Chrome, Firefox, Safari iOS 15+)
 - **Language**: Vanilla HTML5, CSS3, ES6+ JavaScript
 - **Framework**: None (REQ-17: no frameworks or build tools)
-- **Serving**: node:22-slim Docker image with minimal static server
+- **Serving**: nginx:alpine Docker image serving static files on port 80
 - **Persistence**: localStorage (high score only)
 
 ## Directory Structure
@@ -16,7 +16,7 @@ A single-file browser-based Klondike Solitaire card game. No server-side logic �
 ├── CLAUDE.md              # This file — AI agent instructions
 ├── index.html             # The complete game (created in Phase 2)
 ├── server.js              # Minimal Node.js static file server (port 8080)
-├── Dockerfile             # node:22-slim, runs server.js
+├── Dockerfile             # nginx:alpine, serves index.html on port 80
 ├── package.json           # Project metadata and convenience scripts
 ├── tsconfig.json          # Editor-only type checking (noEmit)
 └── docs/
@@ -43,7 +43,7 @@ npm run docker:run
 # Then open http://localhost:8080
 ```
 
-> The container runs as non-root (`USER node`) on port 8080, with a `/healthz` endpoint for K8s probes.
+> The container runs nginx:alpine on port 80 (mapped to host 8080 via `docker:run`). For K8s probes, use `/` which serves `index.html`.
 
 ## Conventions
 - **Single file**: All game code (HTML, CSS, JS) in `index.html` — no external files
