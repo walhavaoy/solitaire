@@ -1,0 +1,11 @@
+{
+  "name": "klondike-solitaire",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Klondike Solitaire — single-file browser card game",
+  "scripts": {
+    "start": "npx serve .",
+    "docker:build": "docker build -t klondike-solitaire .",
+    "docker:run": "docker run -p 8080:80 klondike-solitaire"
+  }
+}
