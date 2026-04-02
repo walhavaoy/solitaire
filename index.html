@@ -191,9 +191,22 @@ body {
   background: var(--empty-pile-bg);
 }
 
-.pile:focus {
+.pile:focus,
+.tableau-column:focus {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+.card-focused {
+  outline: 0.1875rem solid var(--accent-gold);
+  outline-offset: 0.0625rem;
+  z-index: 500 !important;
+}
+
+.card-selected {
+  outline: 0.1875rem solid var(--accent-gold-dim);
+  box-shadow: 0 0 0.75rem var(--accent-gold);
+  z-index: 500 !important;
 }
 
 .pile.drop-target {
@@ -540,6 +553,12 @@ const gameArea = document.querySelector('.game-area');
 
 const cardMap = new WeakMap();
 
+/* ===== KEYBOARD NAVIGATION STATE ===== */
+/** @type {{ cards: Card[], fromPileId: string } | null} */
+let pendingSelection = null;
+/** Index of the focused card within the currently focused pile (-1 = pile-level) */
+let focusedCardIndex = -1;
+
 /* ===== GAME STATE ===== */
 
 /** @typedef {{ suit: string, value: number, faceUp: boolean }} Card */
@@ -609,6 +628,8 @@ function saveHighScore(score) {
 /* ===== GAME LOGIC ===== */
 
 function newGame() {
+  clearSelection();
+  focusedCardIndex = -1;
   const deck = createDeck();
   state.stock = [];
   state.waste = [];
@@ -820,6 +841,7 @@ function autoMove(card) {
 
 function undo() {
   if (state.undoStack.length === 0 || state.gameWon) return;
+  clearSelection();
 
   const move = state.undoStack.pop();
 
@@ -861,11 +883,16 @@ function createCardEl(card, zIndex) {
   el.style.zIndex = String(zIndex);
   cardMap.set(el, card);
 
+  el.setAttribute('role', 'img');
+
   if (card.faceUp) {
     el.classList.add('face-up');
     const color = cardColor(card);
     const symbol = SUIT_SYMBOLS[card.suit];
     const val = displayValue(card.value);
+    const rankName = { 1: 'Ace', 11: 'Jack', 12: 'Queen', 13: 'King' }[card.value] || String(card.value);
+    const suitName = card.suit.charAt(0).toUpperCase() + card.suit.slice(1);
+    el.setAttribute('aria-label', `${rankName} of ${suitName}, face up`);
     el.innerHTML =
       `<div class="card-face ${color}">` +
         `<span class="card-corner card-corner-top">${val}<br>${symbol}</span>` +
@@ -873,6 +900,7 @@ function createCardEl(card, zIndex) {
         `<span class="card-corner card-corner-bottom">${val}<br>${symbol}</span>` +
       `</div>`;
   } else {
+    el.setAttribute('aria-label', 'Face down card');
     el.innerHTML = '<div class="card-back"></div>';
   }
 
@@ -945,6 +973,13 @@ function renderAll() {
   highScoreEl.textContent = hs !== null ? `Best: ${hs}` : 'Best: --';
 
   undoBtn.disabled = state.undoStack.length === 0 || state.gameWon;
+
+  /* Re-apply keyboard navigation state after DOM re-creation */
+  reapplySelection();
+  const activePile = document.activeElement?.closest('.pile, .tableau-column');
+  if (activePile) {
+    applyCardFocus(activePile);
+  }
 }
 
 /* ===== WIN OVERLAY ===== */
@@ -962,6 +997,8 @@ function showWinOverlay() {
   winOverlay.classList.add('visible');
   spawnConfetti();
   highScoreEl.textContent = `Best: ${getHighScore()}`;
+  clearSelection();
+  playAgainBtn.focus();
 }
 
 function hideWinOverlay() {
@@ -1290,10 +1327,87 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/* ===== KEYBOARD NAVIGATION HELPERS ===== */
+
+/** Ordered list of pile DOM elements for arrow key navigation */
+function getPileOrder() {
+  return [
+    stockEl, wasteEl,
+    ...foundationEls,
+    ...tableauEls
+  ];
+}
+
+/** Clear pending keyboard selection */
+function clearSelection() {
+  pendingSelection = null;
+  document.querySelectorAll('.card-selected').forEach(el => el.classList.remove('card-selected'));
+}
+
+/** Clear card focus highlight */
+function clearCardFocus() {
+  document.querySelectorAll('.card-focused').forEach(el => el.classList.remove('card-focused'));
+}
+
+/** Get the card DOM element at an index within a pile container */
+function getCardElAt(pileEl, index) {
+  const cards = pileEl.querySelectorAll('.card');
+  return index >= 0 && index < cards.length ? cards[index] : null;
+}
+
+/** Get the range of face-up card indices in a pile */
+function getFaceUpRange(pileId) {
+  const pile = getPile(pileId);
+  if (!pile || pile.length === 0) return { min: -1, max: -1 };
+  let min = -1;
+  for (let i = 0; i < pile.length; i++) {
+    if (pile[i].faceUp) { min = i; break; }
+  }
+  return { min, max: pile.length - 1 };
+}
+
+/** Apply .card-focused to the card at focusedCardIndex in the given pile element */
+function applyCardFocus(pileEl) {
+  clearCardFocus();
+  if (focusedCardIndex < 0) return;
+  const el = getCardElAt(pileEl, focusedCardIndex);
+  if (el) el.classList.add('card-focused');
+}
+
+/** Re-apply .card-selected to DOM elements matching pendingSelection */
+function reapplySelection() {
+  document.querySelectorAll('.card-selected').forEach(el => el.classList.remove('card-selected'));
+  if (!pendingSelection) return;
+  document.querySelectorAll('.card').forEach(el => {
+    const card = cardMap.get(el);
+    if (card && pendingSelection.cards.includes(card)) {
+      el.classList.add('card-selected');
+    }
+  });
+}
+
+/* Focusin: track which pile has focus and set initial card focus */
+gameArea.addEventListener('focusin', (e) => {
+  const pileEl = e.target.closest('.pile, .tableau-column');
+  if (!pileEl) return;
+  const pileId = getPileIdFromEl(pileEl);
+  if (!pileId) return;
+
+  const range = getFaceUpRange(pileId);
+  focusedCardIndex = range.max; /* Focus last (top) face-up card */
+  applyCardFocus(pileEl);
+});
+
 /* Keyboard navigation */
 document.addEventListener('keydown', (e) => {
+  /* Ignore keyboard shortcuts when win overlay is visible */
+  if (state.gameWon && e.key !== 'Escape') return;
+
   if (e.key === 'Escape') {
-    /* Cancel any drag */
+    if (pendingSelection) {
+      clearSelection();
+      return;
+    }
     if (dragState) {
       endDrag(-1, -1);
     }
@@ -1306,22 +1420,89 @@ document.addEventListener('keydown', (e) => {
   const testId = focused.getAttribute('data-testid');
   if (!testId || !testId.startsWith('solitaire-')) return;
 
+  const pileId = getPileIdFromEl(focused);
+
+  /* Arrow Up/Down — navigate within tableau columns */
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    if (!pileId || !pileId.startsWith('tableau-')) return;
+    e.preventDefault();
+    const range = getFaceUpRange(pileId);
+    if (range.min < 0) return;
+
+    if (e.key === 'ArrowUp') {
+      focusedCardIndex = Math.max(range.min, focusedCardIndex - 1);
+    } else {
+      focusedCardIndex = Math.min(range.max, focusedCardIndex + 1);
+    }
+    applyCardFocus(focused);
+    return;
+  }
+
+  /* Arrow Left/Right — move focus between piles */
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    const piles = getPileOrder();
+    const currentIdx = piles.indexOf(focused);
+    if (currentIdx < 0) return;
+
+    let nextIdx;
+    if (e.key === 'ArrowLeft') {
+      nextIdx = currentIdx > 0 ? currentIdx - 1 : piles.length - 1;
+    } else {
+      nextIdx = currentIdx < piles.length - 1 ? currentIdx + 1 : 0;
+    }
+    piles[nextIdx].focus();
+    return;
+  }
+
+  /* Enter/Space — select or place card */
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
+
+    /* Stock pile: always draw */
     if (testId === 'solitaire-stock') {
+      clearSelection();
       drawFromStock();
       return;
     }
 
-    /* Find top face-up card in focused pile */
-    const pileId = getPileIdFromEl(focused);
     if (!pileId) return;
-    const pile = getPile(pileId);
-    if (!pile || pile.length === 0) return;
 
-    const topCard = pile[pile.length - 1];
-    if (topCard.faceUp) {
-      autoMove(topCard);
+    if (pendingSelection === null) {
+      /* SELECT phase */
+      const pile = getPile(pileId);
+      if (!pile || pile.length === 0) return;
+
+      /* Determine which card to select */
+      let cardIndex = focusedCardIndex;
+      if (cardIndex < 0 || cardIndex >= pile.length) {
+        cardIndex = pile.length - 1;
+      }
+      const card = pile[cardIndex];
+      if (!card || !card.faceUp) return;
+
+      /* Select from this card to end of pile */
+      const cards = pile.slice(cardIndex);
+      pendingSelection = { cards, fromPileId: pileId };
+
+      /* Apply visual selection */
+      reapplySelection();
+    } else {
+      /* PLACE phase */
+      if (pileId === pendingSelection.fromPileId) {
+        /* Same pile = deselect */
+        clearSelection();
+        return;
+      }
+
+      const moved = executeMove(pendingSelection.cards, pendingSelection.fromPileId, pileId);
+      if (moved) {
+        clearSelection();
+      } else {
+        /* Invalid move — shake the destination */
+        focused.classList.add('shake');
+        setTimeout(() => focused.classList.remove('shake'), 300);
+      }
     }
   }
 });
