@@ -60,25 +60,25 @@
 - Shows top card face-down (or empty indicator when depleted)
 - Click draws to waste
 - Empty state: dashed border circle (recycle indicator)
-- `data-testid="pile-stock"`
+- `data-testid="solitaire-stock"`
 
 ### Waste Pile
 - Adjacent to stock (right)
 - Shows top card face-up
 - Top card is draggable / clickable
-- `data-testid="pile-waste"`
+- `data-testid="solitaire-waste"`
 
 ### Foundation Piles
 - Top-right area, 4 piles in a row
 - Empty state: suit symbol watermark (♠♥♦♣)
 - Cards stack directly on top (no offset)
-- `data-testid="pile-foundation-0"` through `data-testid="pile-foundation-3"`
+- `data-testid="solitaire-foundation-hearts"`, `"solitaire-foundation-diamonds"`, `"solitaire-foundation-clubs"`, `"solitaire-foundation-spades"`
 
 ### Tableau Columns
 - 7 columns below the stock/foundation row
 - Face-down cards: stacked with small vertical offset (0.5rem)
 - Face-up cards: stacked with larger vertical offset (1.5rem) to show values
-- `data-testid="pile-tableau-0"` through `data-testid="pile-tableau-6"`
+- `data-testid="solitaire-tableau-0"` through `data-testid="solitaire-tableau-6"`
 
 ## Interaction Flows
 
@@ -128,8 +128,8 @@
   - "New Best!" badge if high score beaten
   - "Play Again" button
 - Confetti animation: CSS keyframe particles falling from top
-- `data-testid="win-overlay"`
-- `data-testid="win-play-again"`
+- `data-testid="solitaire-win-overlay"`
+- `data-testid="solitaire-playagain"`
 
 ## Background
 - Game area background: `var(--felt-color, #2e7d32)` with subtle radial gradient for depth
@@ -158,17 +158,18 @@
 
 ## data-testid Reference
 
+All interactive and display elements use the `solitaire-*` prefix convention.
+
 | Element | data-testid |
 |---------|------------|
-| Stock pile | `pile-stock` |
-| Waste pile | `pile-waste` |
-| Foundation pile N | `pile-foundation-{0-3}` |
-| Tableau column N | `pile-tableau-{0-6}` |
-| Individual card | `card-{suit}-{value}` (e.g. `card-hearts-1`) |
-| New Game button | `btn-new-game` |
-| Undo button | `btn-undo` |
-| Move counter | `display-moves` |
-| High score | `display-highscore` |
-| Win overlay | `win-overlay` |
-| Play Again button | `win-play-again` |
-| Win move count | `win-move-count` |
+| Stock pile | `solitaire-stock` |
+| Waste pile | `solitaire-waste` |
+| Foundation pile (by suit) | `solitaire-foundation-{suit}` (e.g. `solitaire-foundation-hearts`) |
+| Tableau column N | `solitaire-tableau-{0-6}` |
+| Individual card | `solitaire-card-{suit}-{rank}` (e.g. `solitaire-card-hearts-1`) |
+| New Game button | `solitaire-newgame` |
+| Undo button | `solitaire-undo` |
+| Move counter | `solitaire-movecount` |
+| High score | `solitaire-highscore` |
+| Win overlay | `solitaire-win-overlay` |
+| Play Again button | `solitaire-playagain` |
