@@ -1,5 +1,13 @@
-FROM nginx:alpine
+FROM node:22-alpine
 
-COPY index.html /usr/share/nginx/html/index.html
+WORKDIR /app
 
-EXPOSE 80
+COPY package.json server.js ./
+RUN mkdir -p public
+COPY index.html public/index.html
+
+EXPOSE 8080
+
+USER node
+
+CMD ["node", "server.js"]
