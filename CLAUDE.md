@@ -1,13 +1,13 @@
 # Klondike Solitaire
 
 ## Overview
-A single-file browser-based Klondike Solitaire card game. No server-side logic — everything runs in the browser. The entire game (HTML, CSS, JavaScript) lives in one `index.html` file, served by nginx.
+A single-file browser-based Klondike Solitaire card game. No server-side logic — everything runs in the browser. The entire game (HTML, CSS, JavaScript) lives in one `index.html` file, served by a minimal Node.js static server.
 
 ## Tech Stack
 - **Runtime**: Modern browser (Chrome, Firefox, Safari iOS 15+)
 - **Language**: Vanilla HTML5, CSS3, ES6+ JavaScript
 - **Framework**: None (REQ-17: no frameworks or build tools)
-- **Serving**: nginx:alpine Docker image
+- **Serving**: node:22-slim Docker image with minimal static server
 - **Persistence**: localStorage (high score only)
 
 ## Directory Structure
@@ -15,7 +15,8 @@ A single-file browser-based Klondike Solitaire card game. No server-side logic �
 /
 ├── CLAUDE.md              # This file — AI agent instructions
 ├── index.html             # The complete game (created in Phase 2)
-├── Dockerfile             # nginx:alpine, serves index.html
+├── server.js              # Minimal Node.js static file server (port 8080)
+├── Dockerfile             # node:22-slim, runs server.js
 ├── package.json           # Project metadata and convenience scripts
 ├── tsconfig.json          # Editor-only type checking (noEmit)
 └── docs/
@@ -33,7 +34,7 @@ A single-file browser-based Klondike Solitaire card game. No server-side logic �
 
 ## Build & Run
 ```bash
-# Local development (requires npx)
+# Local development
 npm start
 
 # Docker build and run
@@ -42,7 +43,7 @@ npm run docker:run
 # Then open http://localhost:8080
 ```
 
-> **Note**: `index.html` does not exist yet — it will be created in Phase 2 (game implementation). The Docker build will fail until then. This is expected.
+> The container runs as non-root (`USER node`) on port 8080, with a `/healthz` endpoint for K8s probes.
 
 ## Conventions
 - **Single file**: All game code (HTML, CSS, JS) in `index.html` — no external files
